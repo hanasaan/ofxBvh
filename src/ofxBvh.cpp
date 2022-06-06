@@ -1,6 +1,7 @@
 #include "ofxBvh.h"
 #include "ofMain.h"
 #include "euler.h"
+#include <glm/gtx/euler_angles.hpp>
 
 using namespace std;
 
@@ -17,6 +18,7 @@ glm::vec3 matToEuler(glm::mat4 matrix, string order) {
     int type;
     if (order == "YXZ") type = EulOrdZXYs;
     else if (order == "ZXY") type = EulOrdYXZs;
+    else if (order == "XYZ") type = EulOrdZYXs;
     else {
         cout << "Rotation order '" << order << "' is not implemented. Please add it to matToEuler()" << endl;
         return;
@@ -65,28 +67,35 @@ void ofxBvhJoint::dumpHierarchy(ostream& output, string tabs) {
 }
 
 void ofxBvhJoint::drawHierarchy(bool drawNames) {
-    ofSetColor(ofColor::white);
+    if (parent) {
+        ofPushMatrix();
+        ofMultMatrix(parent->globalMat);
+    }
+    ofSetColor(255,128);
     ofDrawLine(glm::vec3(), offset);
-    
+    if (parent) {
+        ofPopMatrix();
+    }
+
     ofPushMatrix();
-    ofMultMatrix(localMat);
+    ofMultMatrix(globalMat);
+    ofDrawAxis(10);
     
     if (isSite()) {
         ofSetColor(ofColor::yellow);
         ofDrawBox(0, 0, 0, 2, 2, 2);
     } else {
-        ofSetColor(ofColor::white);
+        ofSetColor(255,128);
         ofDrawBox(0, 0, 0, 4, 4, 4);
         if (drawNames) {
             ofDrawBitmapString(name, 0, 0);
         }
     }
-    
+    ofPopMatrix();
+
     for (auto child : children) {
         child->drawHierarchy(drawNames);
     }
-    
-    ofPopMatrix();
 }
 
 void ofxBvhJoint::updateRaw(vector<double>::const_iterator& frame) {
@@ -357,7 +366,7 @@ void ofxBvh::updatePlayTime() {
     if (!checkReady()) return;
     
     // update the time
-    bool previousFrameNumber = frameNumber;
+    unsigned int previousFrameNumber = frameNumber;
     if (playing) {
         float elapsed = ofGetElapsedTimef() - startTime;
         int progress = elapsed * getFrameRate() * playRate;
